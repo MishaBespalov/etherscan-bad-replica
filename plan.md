@@ -218,7 +218,7 @@ CREATE TABLE transactions (
     tx_index        INT NOT NULL,
     from_addr       BYTEA NOT NULL,
     to_addr         BYTEA,
-    value           NUMERIC(78, 0) NOT NULL,
+    value           BYTEA NOT NULL,
     gas_price       BIGINT NOT NULL,
     gas_limit       BIGINT NOT NULL,
     gas_used        BIGINT NOT NULL,
@@ -252,8 +252,8 @@ CREATE TABLE token_transfers (
     token_address   BYTEA NOT NULL,
     from_addr       BYTEA NOT NULL,
     to_addr         BYTEA NOT NULL,
-    value           NUMERIC(78, 0),
-    token_id        NUMERIC(78, 0),
+    value           BYTEA NOT NULL,
+    token_id        BYTEA NOT NULL,
     token_type      SMALLINT NOT NULL,
     UNIQUE(tx_hash, log_index)
 );
