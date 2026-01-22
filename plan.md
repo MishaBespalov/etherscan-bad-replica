@@ -197,39 +197,39 @@ etherscan-cli auth api-keys list|create|delete
 
 ```sql
 -- Blocks
-blocks (
+CREATE TABLE blocks (
     number          BIGINT PRIMARY KEY,
     hash            BYTEA UNIQUE NOT NULL,
     parent_hash     BYTEA NOT NULL,
-    timestamp       BIGINT NOT NULL,
+    timestamp       TIMESTAMPTZ NOT NULL,     -- Changed: Stores block time (UTC)
     miner           BYTEA NOT NULL,
     gas_used        BIGINT NOT NULL,
     gas_limit       BIGINT NOT NULL,
     base_fee        BIGINT,
     tx_count        INT NOT NULL,
     size            INT NOT NULL,
-    created_at      TIMESTAMP DEFAULT NOW()
-)
+    created_at      TIMESTAMPTZ DEFAULT NOW() -- Changed: DB insertion time
+);
 
--- Transactions  
-transactions (
+-- Transactions
+CREATE TABLE transactions (
     hash            BYTEA PRIMARY KEY,
     block_number    BIGINT REFERENCES blocks(number),
     tx_index        INT NOT NULL,
     from_addr       BYTEA NOT NULL,
-    to_addr         BYTEA,                    -- NULL for contract creation
-    value           NUMERIC(78, 0) NOT NULL,  -- wei
+    to_addr         BYTEA,
+    value           NUMERIC(78, 0) NOT NULL,
     gas_price       BIGINT NOT NULL,
     gas_limit       BIGINT NOT NULL,
     gas_used        BIGINT NOT NULL,
     input           BYTEA,
     nonce           BIGINT NOT NULL,
-    status          SMALLINT,                 -- 0=fail, 1=success
-    created_at      TIMESTAMP DEFAULT NOW()
-)
+    status          SMALLINT,
+    created_at      TIMESTAMPTZ DEFAULT NOW() -- Changed
+);
 
 -- Logs/Events
-logs (
+CREATE TABLE logs (
     id              BIGSERIAL PRIMARY KEY,
     block_number    BIGINT NOT NULL,
     tx_hash         BYTEA REFERENCES transactions(hash),
@@ -241,10 +241,10 @@ logs (
     topic3          BYTEA,
     data            BYTEA,
     UNIQUE(tx_hash, log_index)
-)
+);
 
--- Token Transfers (decoded ERC20/721 Transfer events)
-token_transfers (
+-- Token Transfers
+CREATE TABLE token_transfers (
     id              BIGSERIAL PRIMARY KEY,
     block_number    BIGINT NOT NULL,
     tx_hash         BYTEA NOT NULL,
@@ -252,14 +252,14 @@ token_transfers (
     token_address   BYTEA NOT NULL,
     from_addr       BYTEA NOT NULL,
     to_addr         BYTEA NOT NULL,
-    value           NUMERIC(78, 0),           -- ERC20 amount
-    token_id        NUMERIC(78, 0),           -- ERC721 token ID
-    token_type      SMALLINT NOT NULL,        -- 20, 721, 1155
+    value           NUMERIC(78, 0),
+    token_id        NUMERIC(78, 0),
+    token_type      SMALLINT NOT NULL,
     UNIQUE(tx_hash, log_index)
-)
+);
 
 -- Contracts
-contracts (
+CREATE TABLE contracts (
     address         BYTEA PRIMARY KEY,
     creator         BYTEA NOT NULL,
     creation_tx     BYTEA REFERENCES transactions(hash),
@@ -270,46 +270,46 @@ contracts (
     abi             JSONB,
     compiler        TEXT,
     optimization    BOOLEAN,
-    created_at      TIMESTAMP DEFAULT NOW()
-)
+    created_at      TIMESTAMPTZ DEFAULT NOW() -- Changed
+);
 
 -- Sync State
-sync_state (
+CREATE TABLE sync_state (
     id              INT PRIMARY KEY DEFAULT 1,
     last_block      BIGINT NOT NULL,
-    last_updated    TIMESTAMP DEFAULT NOW()
-)
+    last_updated    TIMESTAMPTZ DEFAULT NOW() -- Changed
+);
 ```
 
 ### Auth Tables
 
 ```sql
 -- Users
-users (
+CREATE TABLE users (
     id              UUID PRIMARY KEY,
     email           TEXT UNIQUE NOT NULL,
     password_hash   TEXT NOT NULL,
-    created_at      TIMESTAMP DEFAULT NOW()
-)
+    created_at      TIMESTAMPTZ DEFAULT NOW() -- Changed
+);
 
 -- API Keys
-api_keys (
+CREATE TABLE api_keys (
     id              UUID PRIMARY KEY,
     user_id         UUID REFERENCES users(id),
     key_hash        TEXT UNIQUE NOT NULL,
     name            TEXT,
-    rate_limit      INT DEFAULT 100,          -- requests per minute
-    created_at      TIMESTAMP DEFAULT NOW(),
-    last_used_at    TIMESTAMP
-)
+    rate_limit      INT DEFAULT 100,
+    created_at      TIMESTAMPTZ DEFAULT NOW(), -- Changed
+    last_used_at    TIMESTAMPTZ                -- Changed
+);
 
 -- Usage tracking
-api_usage (
+CREATE TABLE api_usage (
     id              BIGSERIAL PRIMARY KEY,
     api_key_id      UUID REFERENCES api_keys(id),
     endpoint        TEXT NOT NULL,
-    timestamp       TIMESTAMP DEFAULT NOW()
-)
+    timestamp       TIMESTAMPTZ DEFAULT NOW()  -- Changed
+);
 ```
 
 ---
