@@ -4,3 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+common.workspace = true
+alloy = { version = "1.4.3", features = ["full"] }
+alloy-rpc-client = { version = "1.4.3", features = ["alloy-transport-http", "hyper", "pubsub", "ws"] }
+anyhow = "1.0.100"
+tokio = { version = "1.49.0", features = ["full"] }
+sqlx = "0.8.6"
+derive_builder = "0.20.2"
+chrono = "0.4.43"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
+tokio-util = { version = "0.7.18", features = ["rt"] }
+futures = "0.3.31"
