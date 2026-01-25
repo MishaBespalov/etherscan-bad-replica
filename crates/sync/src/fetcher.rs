@@ -10,9 +10,21 @@ use derive_builder::Builder;
 use futures::StreamExt;
 use futures::stream;
 use sqlx::PgPool;
+use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::sync::mpsc::Sender;
+
+#[derive(Clone, Debug)]
+pub struct BlockTip {
+    humber: u64,
+    hash: B256,
+    parent_hash: B256,
+}
+pub enum ChainEvent {
+    NewBlock(u64),
+    Reorg(u64),
+}
 
 #[derive(Builder)]
 pub struct Fetcher<P>
@@ -23,12 +35,51 @@ where
     sender: Sender<RawBlockData>,
     #[builder(default = "Arc::new(Semaphore::new(10))")]
     semaphore: Arc<Semaphore>,
+    LocalTip: VecDeque<BlockTip>,
 }
 
 impl<P> Fetcher<P>
 where
     P: Provider + Clone + Send + Sync + 'static,
 {
+    pub async fn next_event(&mut self, local_tip: LocalTip, db_pool: PgPool) -> Result<ChainEvent> {
+        let next_height = local_tip.height + 1;
+        let next_remote_parent_hash = self
+            .fetch_remote_block_parent_hash(next_height)
+            .await?;
+
+        if next_remote_parent_hash == local_tip.hash {
+            return Ok(ChainEvent::NewBlock(next_height));
+        }
+
+        let new_head_hash = self
+            .fetch_remote_block_hash(next_height)
+            .await?;
+        let mut check_height = local_tip.height;
+
+        while check_height > 0 {
+            let remote_parent_hash = self
+                .fetch_remote_block_parent_hash(check_height)
+                .await?;
+
+            let local_prev_hash = pg_fetch_block_hash(&db_pool, check_height - 1).await?;
+
+            if remote_parent_hash == local_prev_hash {
+                let common_ancestor_height = check_height - 1;
+
+                return Ok(ChainEvent::ForkDetected {
+                    stale_head: local_tip.hash, // You can pass 'local_tip' here if needed
+                    new_head: new_head_hash,
+                    common_ancestor: common_ancestor_height,
+                });
+            }
+
+            check_height -= 1;
+        }
+
+        Err(anyhow!("Critical error no common ancestor found!"))
+    }
+
     pub async fn run(&self, pg_pool: PgPool) -> Result<()> {
         self.subscribe(pg_pool).await?;
         Ok(())
