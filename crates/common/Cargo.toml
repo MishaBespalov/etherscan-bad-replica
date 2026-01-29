@@ -4,11 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-alloy = { version = "1.4.3", features = ["full"] }
+alloy = { version = "1.4.3", features = ["full", "postgres"] }
 alloy-primitives = { version = "1.5.2", features = ["postgres"] }
 anyhow = "1.0.100"
 chrono = { version = "0.4.43", features = ["serde"] }
-ethers_primitives = "0.2.2"
 serde = { version = "1.0.228", features = ["derive"] }
 sqlx = { version = "0.8.6", features = ["bigdecimal", "chrono", "postgres", "runtime-tokio-rustls"] }
 uuid = { version = "1.19.0", features = ["serde", "v4"] }

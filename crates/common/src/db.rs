@@ -1,10 +1,169 @@
-use crate::types::{Block, Contract, Log, TokenTransfer, Transaction};
-use alloy_primitives::{Address, B256};
+use alloy_primitives::{Address, B256, Bytes, FixedBytes, U256};
+use std::collections::VecDeque;
+
+use crate::types::{Block, BlockData, Contract, Log, TokenTransfer, Transaction};
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use sqlx::PgExecutor;
-use sqlx::postgres::PgTransaction;
-use sqlx::{Error, PgPool, query};
+use sqlx::{Error, query};
+
+pub async fn fetch_addresses_txs<'a, E>(
+    executor: E,
+    addr: Address,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Transaction>, sqlx::Error>
+where
+    E: PgExecutor<'a>,
+{
+    let rows = query!(
+        r#"
+            SELECT hash, block_number, tx_index, from_addr, to_addr, value,
+                   gas_price, gas_limit, gas_used, input, nonce, status, created_at
+            FROM transactions
+            WHERE from_addr = $1 OR to_addr = $1
+            ORDER BY block_number DESC
+            LIMIT $2 OFFSET $3
+            "#,
+        addr.as_slice(),
+        limit,
+        offset,
+    )
+    .fetch_all(executor)
+    .await?;
+
+    let txs = rows
+        .into_iter()
+        .map(|r| Transaction {
+            hash: B256::from_slice(&r.hash),
+            block_number: r.block_number,
+            tx_index: r.tx_index,
+            from_addr: Address::from_slice(&r.from_addr),
+            to_addr: r
+                .to_addr
+                .map(|a| Address::from_slice(&a)),
+            value: U256::from_be_slice(&r.value),
+            gas_price: r.gas_price,
+            gas_limit: r.gas_limit,
+            gas_used: r.gas_used,
+            input: r.input.map(Bytes::from),
+            nonce: r.nonce,
+            status: r.status,
+            created_at: r.created_at.expect("unreachable"),
+        })
+        .collect();
+
+    Ok(txs)
+}
+
+pub async fn fetch_block_by_number<'a, E>(
+    executor: E,
+    block_number: u64,
+) -> Result<Block, sqlx::Error>
+where
+    E: PgExecutor<'a>,
+{
+    let record = query!(
+        r#"
+        SELECT * FROM blocks WHERE number = $1;
+
+    "#,
+        block_number as i64
+    )
+    .fetch_one(executor)
+    .await?;
+    let block = Block {
+        number: record.number as u64,
+        hash: FixedBytes::from_slice(&record.hash),
+        parent_hash: FixedBytes::from_slice(&record.parent_hash),
+        gas_used: record.gas_used as u64,
+        gas_limit: record.gas_limit as u64,
+        miner: Address::from_slice(&record.miner),
+        tx_count: record.tx_count as u32,
+        timestamp: record.timestamp,
+        base_fee: record.base_fee,
+        created_at: record
+            .created_at
+            .expect("this should never happen"),
+        size: record.size as u32,
+    };
+
+    Ok(block)
+}
+
+pub async fn fetch_tx_by_hash<'a, E>(executor: E, hash: B256) -> Result<Transaction, sqlx::Error>
+where
+    E: PgExecutor<'a>,
+{
+    let record = query!(
+        r#"
+        SELECT * FROM transactions WHERE hash = $1;
+
+    "#,
+        hash.as_slice()
+    )
+    .fetch_one(executor)
+    .await?;
+    let transaction = Transaction {
+        hash: FixedBytes::from_slice(&record.hash),
+        block_number: record.block_number,
+        tx_index: record.tx_index,
+        from_addr: Address::from_slice(&record.from_addr),
+        to_addr: record
+            .to_addr
+            .map(|v| Address::from_slice(&v)),
+        value: U256::from_be_slice(&record.value),
+        gas_used: record.gas_used,
+        gas_price: record.gas_price,
+        gas_limit: record.gas_limit,
+        input: record.input.map(Bytes::from),
+        nonce: record.nonce,
+        status: record.status,
+        created_at: record.created_at.expect("unreachable"),
+    };
+    Ok(transaction)
+}
+
+pub async fn fetch_block_history<'a, E>(executor: E) -> Result<VecDeque<BlockData>>
+where
+    E: PgExecutor<'a>,
+{
+    let record = query!(
+        r#"
+        SELECT number, hash, parent_hash FROM blocks ORDER BY number DESC LIMIT 128;
+        "#
+    )
+    .fetch_all(executor)
+    .await?;
+    let result = VecDeque::from_iter(record.iter().map(|row| BlockData {
+        number: row.number as u64,
+        hash: B256::from_slice(&row.hash),
+        parent_hash: B256::from_slice(&row.parent_hash),
+    }));
+    Ok(result)
+}
+
+pub async fn fetch_block_history_until<'a, E>(
+    executor: E,
+    until: u64,
+) -> Result<VecDeque<BlockData>>
+where
+    E: PgExecutor<'a>,
+{
+    let record = query!(
+        r#"
+        SELECT number, hash, parent_hash FROM blocks WHERE number < $1 ORDER BY number DESC LIMIT 128;
+        "#
+    ,until as i64
+    )
+    .fetch_all(executor)
+    .await?;
+    let result = VecDeque::from_iter(record.iter().map(|row| BlockData {
+        number: row.number as u64,
+        hash: B256::from_slice(&row.hash),
+        parent_hash: B256::from_slice(&row.parent_hash),
+    }));
+    Ok(result)
+}
 
 pub async fn fetch_latest_block_number<'a, E>(executor: E) -> Result<u64>
 where
@@ -18,6 +177,40 @@ where
     .fetch_one(executor)
     .await?;
     Ok(record.number as u64)
+}
+
+pub async fn drop_blocks_data_until<'a, E>(executor: E, block_number: u64) -> Result<(), Error>
+where
+    E: PgExecutor<'a>,
+{
+    query!(
+        r#"
+            WITH del_tx AS (
+                DELETE FROM transactions
+                WHERE block_number > $1
+                RETURNING hash
+            ),
+            del_contracts AS (
+                DELETE FROM contracts
+                WHERE creation_tx IN (SELECT hash FROM del_tx)
+            ),
+            del_logs AS (
+                DELETE FROM logs
+                WHERE block_number > $1
+            ),
+            del_transfers AS (
+                DELETE FROM token_transfers
+                WHERE block_number > $1
+            )
+            DELETE FROM blocks
+            WHERE number > $1
+            "#,
+        block_number as i64
+    )
+    .execute(executor)
+    .await?;
+
+    Ok(())
 }
 
 pub async fn insert_block<'a, E>(executor: E, block: Block) -> Result<(), Error>
@@ -148,4 +341,3 @@ where
     .await?;
     Ok(())
 }
-

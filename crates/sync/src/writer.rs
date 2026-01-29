@@ -1,30 +1,66 @@
-use anyhow::Result;
-use common::db::{insert_block, insert_contract, insert_log, insert_token_transfer, insert_tx};
-use common::types::ProcessedBlock;
+use crate::watcher::SyncState;
+use anyhow::{Result, bail};
+use common::{
+    db::{
+        drop_blocks_data_until, insert_block, insert_contract, insert_log, insert_token_transfer,
+        insert_tx,
+    },
+    types::ProcessedBlock,
+};
 use sqlx::postgres::PgPool;
-use tokio::sync::mpsc::Receiver;
+use tokio::{
+    select,
+    sync::{mpsc::Receiver, watch},
+};
 
 pub struct Writer {
     pub processed_block_receiver: Receiver<ProcessedBlock>,
     pub db_pool: PgPool,
+    pub state_check: watch::Receiver<SyncState>,
 }
 
 impl Writer {
     pub async fn run(&mut self) -> Result<()> {
-        let mut batch: Vec<ProcessedBlock> = Vec::with_capacity(32);
-        while let Some(processed_block) = self
-            .processed_block_receiver
-            .recv()
-            .await
-        {
-            batch.push(processed_block);
-            if batch.len() >= 8 {
-                self.write_batch(batch).await?;
-                batch = Vec::with_capacity(32);
+        let mut batch = Vec::with_capacity(32);
+
+        loop {
+            select! {
+                maybe_block = self.processed_block_receiver.recv() => {
+                    match maybe_block {
+                        Some(processed_block) => {
+                            batch.push(processed_block);
+
+                            if batch.len() >= 8 {
+                                self.write_batch(batch).await?;
+                                batch = Vec::with_capacity(32); // Reset
+                            }
+                        }
+                        None => {
+                            if !batch.is_empty() {
+                                self.write_batch(batch).await?;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                result = self.state_check.changed() => {
+                    if result.is_err() {
+                         bail!("internal error while receiving the state");
+                    }
+
+                    let state = *self.state_check.borrow_and_update();
+
+                    match state {
+                        SyncState::Reorg(number) => {
+                            drop_blocks_data_until(&self.db_pool, number).await?;
+                            batch.clear();
+                        }
+                        SyncState::Sync => continue,
+                        SyncState::Stop => continue,
+                    }
+                }
             }
-        }
-        if !batch.is_empty() {
-            self.write_batch(batch).await?;
         }
         Ok(())
     }

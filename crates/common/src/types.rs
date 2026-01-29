@@ -6,8 +6,15 @@ use sqlx::types::JsonValue;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use uuid::Uuid;
 
+#[derive(Clone)]
+pub struct BlockData {
+    pub number: u64,
+    pub hash: B256,
+    pub parent_hash: B256,
+}
+
+#[derive(Clone)]
 pub struct RawBlockData {
     pub raw_block: AlloyBlock,
     pub tx_receipts: Vec<TransactionReceipt>,
@@ -24,7 +31,7 @@ pub struct ProcessedBlock {
 // ----------------------
 // Blocks
 // ----------------------
-#[derive(Debug, FromRow, Clone)]
+#[derive(Debug, FromRow, Clone, Serialize, Deserialize)]
 pub struct Block {
     pub number: u64,               // BIGINT
     pub hash: B256,                // BYTEA (32 bytes)
@@ -50,7 +57,7 @@ impl From<alloy::rpc::types::Block> for Block {
             parent_hash: header.parent_hash,
 
             timestamp: DateTime::from_timestamp(header.timestamp as i64, 0)
-                .unwrap_or_else(|| Utc::now()),
+                .unwrap_or_else(Utc::now),
 
             miner: header.beneficiary,
 
@@ -77,7 +84,7 @@ impl From<alloy::rpc::types::Block> for Block {
 // ----------------------
 // Transactions
 // ----------------------
-#[derive(Debug, FromRow)]
+#[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct Transaction {
     pub hash: B256, // BYTEA
     pub block_number: Option<i64>,

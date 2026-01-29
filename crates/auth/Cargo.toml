@@ -1,0 +1,30 @@
+[package]
+name = "auth"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+common.workspace = true
+argon2 = "0.5.3"
+jsonwebtoken = "9"
+axum = { version = "0.8.8", features = ["http2"] }
+tokio = { version = "1.49.0", features = ["full"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-native-tls"] }
+redis = { version = "1.0.2", features = ["tokio-comp"] }
+tower-http = { version = "0.6.8", features = ["cors", "trace"] }
+tracing = { version = "0.1.44", features = ["log"] }
+tracing-subscriber = "0.3.22"
+thiserror = "2.0.18"
+anyhow = "1.0.100"
+secrecy = "0.10.3"
+dotenvy = { version = "0.15.7", features = ["cli"] }
+config = { version = "0.15.19", features = ["toml"] }
+deadpool-redis = "0.22.1"
+chrono = "0.4.43"
+uuid = { version = "1.20.0", features = ["serde"] }
+validator = { version = "0.20.0", features = ["derive"] }
+rand = "0.9.2"
+sha2 = "0.10.9"
+hex = "0.4.3"
