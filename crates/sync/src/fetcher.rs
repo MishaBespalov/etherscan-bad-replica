@@ -1,23 +1,19 @@
-use alloy::eips::{BlockId, BlockNumberOrTag};
-use alloy::primitives::B256;
-use alloy::providers::Provider;
-use alloy::rpc::types::Block as AlloyBlock;
-use alloy::rpc::types::TransactionReceipt;
-use anyhow::{Context, Result, anyhow, bail};
-use common::db::fetch_latest_block_number as pg_fetch_latest_block_number;
-use common::types::{Block, RawBlockData};
-use derive_builder::Builder;
-use futures::StreamExt;
-use futures::stream;
-use sqlx::PgPool;
-use std::collections::VecDeque;
-use std::sync::Arc;
-use tokio::select;
-use tokio::sync::Semaphore;
-use tokio::sync::mpsc::Sender;
-use tokio::sync::watch;
-
 use crate::watcher::SyncState;
+use alloy::{
+    eips::{BlockId, BlockNumberOrTag},
+    providers::Provider,
+    rpc::types::{Block as AlloyBlock, TransactionReceipt},
+};
+use anyhow::{Context, Result, anyhow, bail};
+use common::{db::fetch_latest_block_number as pg_fetch_latest_block_number, types::RawBlockData};
+use derive_builder::Builder;
+use futures::{StreamExt, stream};
+use sqlx::PgPool;
+use std::sync::Arc;
+use tokio::{
+    select,
+    sync::{Semaphore, mpsc::Sender, watch},
+};
 
 #[derive(Builder)]
 pub struct Fetcher<P>

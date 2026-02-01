@@ -3,7 +3,7 @@ use anyhow::Result;
 use common::types::{ProcessedBlock, RawBlockData};
 use sqlx::postgres::PgPoolOptions;
 use tokio::{
-    join, select,
+    select,
     signal::unix::{SignalKind, signal},
     sync::{mpsc, watch},
     task::JoinSet,

@@ -1,11 +1,10 @@
-use alloy::primitives::{Address, B256, Bytes, U256};
-use alloy::rpc::types::Block as AlloyBlock;
-use alloy::rpc::types::TransactionReceipt;
-use sqlx::types::JsonValue;
-
+use alloy::{
+    primitives::{Address, B256, Bytes, U256},
+    rpc::types::{Block as AlloyBlock, TransactionReceipt},
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, types::JsonValue};
 
 #[derive(Clone)]
 pub struct BlockData {

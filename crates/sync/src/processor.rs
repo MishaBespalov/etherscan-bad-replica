@@ -1,12 +1,11 @@
-use alloy::consensus::Transaction as TransactionTrait;
-use alloy::network::TransactionResponse;
-use alloy::primitives::{Address, B256, U256, b256};
-use alloy::rpc::types::transaction::Transaction as AlloyTransaction;
+use alloy::{
+    consensus::Transaction as TransactionTrait,
+    network::TransactionResponse,
+    primitives::{Address, B256, U256, b256},
+};
 use anyhow::{Context, Result};
 use chrono::Utc;
-use common::types::{
-    Block, Contract, Log, ProcessedBlock, RawBlockData, TokenTransfer, Transaction,
-};
+use common::types::{Contract, Log, ProcessedBlock, RawBlockData, TokenTransfer, Transaction};
 use tokio::sync::mpsc::{Receiver, Sender};
 
 pub struct Processor {

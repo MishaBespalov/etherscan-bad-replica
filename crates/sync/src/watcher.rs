@@ -1,13 +1,11 @@
-use alloy::primitives::B256;
 use alloy::providers::Provider;
-use sqlx::PgPool;
-use std::collections::VecDeque;
-
 use anyhow::{Result, anyhow, bail};
 use common::{
     db::{fetch_block_history, fetch_block_history_until},
     types::{BlockData, RawBlockData},
 };
+use sqlx::PgPool;
+use std::collections::VecDeque;
 use tokio::sync::{
     mpsc::{Receiver, Sender},
     watch,

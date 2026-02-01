@@ -1,10 +1,11 @@
-use alloy_primitives::{Address, B256, Bytes, FixedBytes, U256};
-use std::collections::VecDeque;
-
 use crate::types::{Block, BlockData, Contract, Log, TokenTransfer, Transaction};
+
+use alloy_primitives::{Address, B256, Bytes, FixedBytes, U256};
 use anyhow::Result;
-use sqlx::PgExecutor;
-use sqlx::{Error, query};
+use sqlx::{
+    PgExecutor, {Error, query},
+};
+use std::collections::VecDeque;
 
 pub async fn fetch_addresses_txs<'a, E>(
     executor: E,
