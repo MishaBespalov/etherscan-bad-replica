@@ -1,25 +1,22 @@
-mod fetcher;
-mod processor;
-mod watcher;
-mod writer;
 use alloy::providers::ProviderBuilder;
 use anyhow::Result;
 use common::types::{ProcessedBlock, RawBlockData};
 use sqlx::postgres::PgPoolOptions;
-use tokio::signal::unix::{SignalKind, signal};
-use tokio::task::JoinSet;
 use tokio::{
     join, select,
+    signal::unix::{SignalKind, signal},
     sync::{mpsc, watch},
+    task::JoinSet,
 };
 use tokio_util::sync::CancellationToken;
 use tracing::{Instrument, error, info};
 
-use fetcher::FetcherBuilder;
-use processor::Processor;
-use writer::Writer;
-
-use crate::watcher::{SyncState, Watcher};
+use sync::{
+    fetcher::FetcherBuilder,
+    processor::Processor,
+    watcher::{SyncState, Watcher},
+    writer::Writer,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {

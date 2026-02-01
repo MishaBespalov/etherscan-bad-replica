@@ -1,7 +1,6 @@
 use crate::{
     AppState,
     errors::{AppError, AppResult},
-    middleware::auth::AuthUser,
     models::{AuthResponse, LoginRequest, RefreshRequest, RegisterRequest},
     services::auth::AuthService,
 };

@@ -1,10 +1,10 @@
-use crate::AppState;
-use crate::error::ApiError;
+use crate::{ApiState, error::ApiError};
 use alloy_primitives::Address;
-use axum::extract::{Json, Path, Query, State};
-use axum::{self};
-use common::db::fetch_addresses_txs;
-use common::types::Transaction;
+use axum::{
+    self,
+    extract::{Json, Path, Query, State},
+};
+use common::{db::fetch_addresses_txs, types::Transaction};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -24,7 +24,7 @@ impl Pagination {
 }
 
 pub async fn get_addresses_txs(
-    State(state): State<AppState>,
+    State(state): State<ApiState>,
     Path(addr): Path<Address>,
     Query(pagination): Query<Pagination>,
 ) -> Result<Json<Vec<Transaction>>, ApiError> {

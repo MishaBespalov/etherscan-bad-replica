@@ -1,18 +1,13 @@
 use anyhow::Result;
-use axum::routing::get;
-use axum::{Router, serve};
-use routes::addresses::get_addresses_txs;
-use routes::blocks::get_block;
-use routes::healthcheck::healthcheck;
-use routes::transactions::get_tx;
-use sqlx::postgres::{PgPool, PgPoolOptions};
-mod error;
-mod routes;
-
-#[derive(Clone)]
-struct AppState {
-    db: PgPool,
-}
+use api::{
+    ApiState,
+    routes::{
+        addresses::get_addresses_txs, blocks::get_block, healthcheck::healthcheck,
+        transactions::get_tx,
+    },
+};
+use axum::{Router, routing::get, serve};
+use sqlx::postgres::PgPoolOptions;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -22,7 +17,7 @@ async fn main() -> Result<()> {
         .connect("postgres://user:password@127.0.0.1:5432/etherscan?sslmode=disable")
         .await
         .expect("failed to connect to postgres");
-    let app_state = AppState { db };
+    let app_state = ApiState { db };
 
     let app = Router::new()
         .route("/health", get(healthcheck))

@@ -26,12 +26,12 @@ pub fn verify_password(password: &str, hash: &str) -> AppResult<bool> {
 }
 
 pub fn generate_api_key() -> (String, String) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Generate prefix (8 chars)
     let prefix: String = (0..8)
         .map(|_| {
-            let idx = rng.gen_range(0..36);
+            let idx = rng.random_range(0..36);
             if idx < 10 {
                 (b'0' + idx) as char
             } else {
@@ -43,7 +43,7 @@ pub fn generate_api_key() -> (String, String) {
     // Generate secret part (32 chars)
     let secret: String = (0..32)
         .map(|_| {
-            let idx = rng.gen_range(0..62);
+            let idx = rng.random_range(0..62);
             if idx < 10 {
                 (b'0' + idx) as char
             } else if idx < 36 {

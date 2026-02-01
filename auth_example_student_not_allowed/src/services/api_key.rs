@@ -121,10 +121,10 @@ impl ApiKeyService {
         .ok_or(AppError::ApiKeyNotFound)?;
 
         // Check expiration
-        if let Some(expires_at) = key.expires_at {
-            if expires_at < Utc::now() {
-                return Err(AppError::ApiKeyExpired);
-            }
+        if let Some(expires_at) = key.expires_at
+            && expires_at < Utc::now()
+        {
+            return Err(AppError::ApiKeyExpired);
         }
 
         // Update last used

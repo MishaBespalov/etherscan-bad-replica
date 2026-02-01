@@ -1,6 +1,4 @@
-use crate::{
-    AppState, errors::AppError, models::api_key::ApiKey, services::rate_limit::RateLimitService,
-};
+use crate::{AppState, errors::AppError, models::ApiKey, services::rate_limit::RateLimitService};
 use axum::{
     extract::{Request, State},
     middleware::Next,
@@ -17,6 +15,12 @@ pub async fn rate_limit_middleware(
         .extensions()
         .get::<ApiKey>()
         .cloned();
+
+    // Check rate limit before processing request
+    if let Some(ref key) = api_key {
+        let service = RateLimitService::new(&state);
+        service.check_rate_limit(key).await?;
+    }
 
     let response = next.run(request).await;
 

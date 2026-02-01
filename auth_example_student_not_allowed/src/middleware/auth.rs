@@ -1,7 +1,7 @@
-use crate::{AppState, errors::AppError, models::token::Claims, services::auth::AuthService};
+use crate::{AppState, errors::AppError, models::Claims, services::auth::AuthService};
 use axum::{
     extract::{Request, State},
-    http::{StatusCode, header},
+    http::header,
     middleware::Next,
     response::Response,
 };

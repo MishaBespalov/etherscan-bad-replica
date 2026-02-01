@@ -4,8 +4,7 @@ use crate::{
     models::ApiKey,
 };
 use deadpool_redis::Pool as RedisPool;
-use redis::AsyncCommands;
-use std::time::Duration;
+use deadpool_redis::redis;
 use uuid::Uuid;
 
 pub struct RateLimitService {
@@ -20,12 +19,10 @@ impl RateLimitService {
     }
 
     pub async fn check_rate_limit(&self, key: &ApiKey) -> AppResult<RateLimitInfo> {
-        let mut conn = self.redis.get().await.map_err(|e| {
-            AppError::RedisError(redis::RedisError::from(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            )))
-        })?;
+        let mut conn =
+            self.redis.get().await.map_err(|e| {
+                AppError::RedisError(redis::RedisError::from(std::io::Error::other(e)))
+            })?;
 
         let minute_key = format!("rate:{}:minute:{}", key.id, current_minute());
         let day_key = format!("rate:{}:day:{}", key.id, current_day());
@@ -62,12 +59,10 @@ impl RateLimitService {
     }
 
     pub async fn increment(&self, key_id: Uuid) -> AppResult<()> {
-        let mut conn = self.redis.get().await.map_err(|e| {
-            AppError::RedisError(redis::RedisError::from(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            )))
-        })?;
+        let mut conn =
+            self.redis.get().await.map_err(|e| {
+                AppError::RedisError(redis::RedisError::from(std::io::Error::other(e)))
+            })?;
 
         let minute_key = format!("rate:{}:minute:{}", key_id, current_minute());
         let day_key = format!("rate:{}:day:{}", key_id, current_day());
@@ -85,7 +80,7 @@ impl RateLimitService {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RateLimitInfo {
     pub minute_remaining: i32,
     pub day_remaining: i32,

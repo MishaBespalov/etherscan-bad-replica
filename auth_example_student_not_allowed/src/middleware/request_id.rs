@@ -1,5 +1,5 @@
 use axum::{extract::Request, middleware::Next, response::Response};
-use tower_http::request_id::{MakeRequestUuid, RequestId};
+use tower_http::request_id::RequestId;
 
 pub async fn request_id_middleware(request: Request, next: Next) -> Response {
     let request_id = request
@@ -13,7 +13,8 @@ pub async fn request_id_middleware(request: Request, next: Next) -> Response {
         })
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-    tracing::info_span!("request", id = %request_id);
+    let span = tracing::info_span!("request", id = %request_id);
+    let _guard = span.entered();
 
     let mut response = next.run(request).await;
 

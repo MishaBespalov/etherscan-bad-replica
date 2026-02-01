@@ -1,19 +1,14 @@
-// src/services/auth.rs
 use crate::{
     AppState, JwtKeys,
     config::JwtConfig,
     errors::{AppError, AppResult},
-    models::{
-        token::{Claims, TokenType},
-        user::{AuthResponse, LoginRequest, RegisterRequest, User, UserResponse},
-    },
-    utils::crypto::{hash_password, verify_password},
+    models::{AuthResponse, Claims, LoginRequest, RegisterRequest, TokenType, User, UserResponse},
+    utils::{hash_password, verify_password},
 };
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, Header, Validation, decode, encode};
 use sqlx::PgPool;
 use std::sync::Arc;
-use uuid::Uuid;
 
 pub struct AuthService {
     db: PgPool,
@@ -84,7 +79,7 @@ impl AuthService {
         let claims = self.validate_refresh_token(refresh_token)?;
 
         // Check if token is revoked
-        let token_hash = crate::utils::crypto::hash_token(refresh_token);
+        let token_hash = crate::utils::hash_token(refresh_token);
         let is_valid = sqlx::query_scalar::<_, bool>(
             r#"
             SELECT EXISTS(
@@ -166,7 +161,7 @@ impl AuthService {
         .map_err(|e| AppError::InternalError(e.into()))?;
 
         // Store refresh token hash
-        let token_hash = crate::utils::crypto::hash_token(&refresh_token);
+        let token_hash = crate::utils::hash_token(&refresh_token);
         let expires_at = now
             + Duration::seconds(
                 self.jwt_config
